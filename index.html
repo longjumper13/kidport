@@ -1090,7 +1090,7 @@ function filterUsers(f) {
 }
 
 function renderUsers(f) {
-  var users = ALL_USERS_CACHE;
+  var users = ALL_USERS_CACHE.slice();
   if (f === 'pending')   users = users.filter(function(u){ return u.status==='pending'; });
   if (f === 'active')    users = users.filter(function(u){ return u.status==='active'; });
   if (f === 'suspended') users = users.filter(function(u){ return u.status==='suspended'; });
@@ -1100,29 +1100,41 @@ function renderUsers(f) {
     return;
   }
   var roleColor = { child:'#EEEDFE', teacher:'#FAEEDA', moderator:'#E6F1FB', parent:'#F1EFE8', admin:'#FCEBEB' };
-  var statusBadge = { active:'<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:#EAF3DE;color:#27500A">active</span>', pending:'<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:#FEF3E2;color:#633806">รออนุมัติ</span>', suspended:'<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:#FCEBEB;color:#791F1F">ระงับ</span>' };
-  el.innerHTML = users.map(function(u){
+  var html = '';
+  for (var i = 0; i < users.length; i++) {
+    var u = users[i];
     var init = (u.fullname||'').charAt(0);
-    var isPending = u.status==='pending';
-    var isSuspended = u.status==='suspended';
-    return '<div style="background:#fff;border-radius:12px;border:0.5px solid #E0DED8;padding:12px;margin-bottom:8px">' +
-      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
-      '<div class="user-av" style="background:'+(roleColor[u.role]||'#EEEDFE')+'">'+init+'</div>' +
-      '<div style="flex:1">' +
-      '<div style="font-size:13px;font-weight:600">'+u.fullname+'</div>' +
-      '<div style="font-size:11px;color:#999">'+u.username+' · '+u.role+'</div>' +
-      '<div style="font-size:10px;color:#ccc;font-family:monospace">'+u.unique_key+'</div>' +
-      '</div>' +
-      (statusBadge[u.status]||'') +
-      '</div>' +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-      (isPending ? '<button class="btn-approve" onclick="approveUser(''+u.unique_key+'',''+u.role+'')">✓ อนุมัติ</button><button class="btn-reject" onclick="rejectUser(''+u.unique_key+'')">✗ ปฏิเสธ</button>' : '') +
-      (!isPending && !isSuspended && u.role!=='admin' ? '<button class="btn-reject" onclick="suspendUser(''+u.unique_key+'')">ระงับ</button>' : '') +
-      (isSuspended ? '<button class="btn-approve" onclick="unsuspendUser(''+u.unique_key+'')">คืนสิทธิ์</button>' : '') +
-      '<button style="font-size:12px;padding:5px 10px;border-radius:20px;background:#E6F1FB;color:#0C447C;border:none;cursor:pointer" onclick="resetPassword(''+u.unique_key+'')">รีเซตรหัส</button>' +
-      '</div>' +
-      '</div>';
-  }).join('');
+    var isPending   = u.status === 'pending';
+    var isSuspended = u.status === 'suspended';
+    var statusHtml  = isPending
+      ? '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:#FEF3E2;color:#633806">รออนุมัติ</span>'
+      : isSuspended
+        ? '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:#FCEBEB;color:#791F1F">ระงับ</span>'
+        : '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:#EAF3DE;color:#27500A">active</span>';
+    var btns = '';
+    if (isPending) {
+      btns += '<button class="btn-approve" onclick="approveUser('' + u.unique_key + '','' + u.role + '')">✓ อนุมัติ</button>';
+      btns += '<button class="btn-reject"  onclick="rejectUser('' + u.unique_key + '')">✗ ปฏิเสธ</button>';
+    } else if (!isSuspended && u.role !== 'admin') {
+      btns += '<button class="btn-reject" onclick="suspendUser('' + u.unique_key + '')">ระงับ</button>';
+    } else if (isSuspended) {
+      btns += '<button class="btn-approve" onclick="unsuspendUser('' + u.unique_key + '')">คืนสิทธิ์</button>';
+    }
+    if (u.role !== 'admin') {
+      btns += '<button style="font-size:12px;padding:5px 10px;border-radius:20px;background:#E6F1FB;color:#0C447C;border:none;cursor:pointer" onclick="resetPassword('' + u.unique_key + '')">รีเซตรหัส</button>';
+    }
+    html += '<div style="background:#fff;border-radius:12px;border:0.5px solid #E0DED8;padding:12px;margin-bottom:8px">';
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">';
+    html += '<div class="user-av" style="background:' + (roleColor[u.role]||'#EEEDFE') + '">' + init + '</div>';
+    html += '<div style="flex:1">';
+    html += '<div style="font-size:13px;font-weight:600">' + u.fullname + '</div>';
+    html += '<div style="font-size:11px;color:#999">' + u.username + ' · ' + u.role + '</div>';
+    html += '<div style="font-size:10px;color:#ccc;font-family:monospace">' + u.unique_key + '</div>';
+    html += '</div>' + statusHtml + '</div>';
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap">' + btns + '</div>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
 }
 
 function loadAdminGroups() {
@@ -1157,8 +1169,7 @@ function showCreateGroup() {
   if (!name) return;
   api('group/create', { session_token: APP.token, name: name, description: '' })
     .then(function(d){
-      if (d.ok) { alert('สร้างกลุ่ม ' + name + ' เรียบร้อย
-Invite code: ' + d.data.invite_code); loadAdminGroups(); }
+      if (d.ok) { alert('สร้างกลุ่ม ' + name + ' เรียบร้อย | Invite code: ' + d.data.invite_code); loadAdminGroups(); }
       else alert(d.error);
     });
 }

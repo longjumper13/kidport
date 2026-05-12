@@ -561,22 +561,62 @@ body {
 <!-- ========== PAGE: ADMIN ========== -->
 <div id="page-admin" class="page">
   <div class="topbar">
-    <span class="topbar-title">&#x1F6E1;&#xFE0F; Admin</span>
-    <button class="btn btn-sm btn-out" onclick="doLogout()" style="width:auto;margin-top:0;padding:6px 12px;font-size:12px">ออก</button>
+    <span class="topbar-title">&#x1F6E1;&#xFE0F; KidPort Admin</span>
+    <div class="topbar-av" id="admin-av">A</div>
   </div>
-  <div class="content">
-    <div class="stat-grid">
-      <div class="stat-card"><div class="stat-val" id="ad-total">0</div><div class="stat-lbl">ผู้ใช้ทั้งหมด</div></div>
-      <div class="stat-card"><div class="stat-val" id="ad-pending" style="color:#E24B4A">0</div><div class="stat-lbl">รออนุมัติ</div></div>
+  <div class="content" id="admin-content">
+
+    <!-- DASHBOARD -->
+    <div class="app-screen on" id="ad-home">
+      <div style="padding:4px 0 12px;font-size:16px;font-weight:600">Dashboard</div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-val" id="ad-total">0</div><div class="stat-lbl">ผู้ใช้ทั้งหมด</div></div>
+        <div class="stat-card"><div class="stat-val" id="ad-pending" style="color:#E24B4A">0</div><div class="stat-lbl">รออนุมัติ</div></div>
+        <div class="stat-card"><div class="stat-val" id="ad-groups">0</div><div class="stat-lbl">กลุ่มทั้งหมด</div></div>
+        <div class="stat-card"><div class="stat-val" id="ad-hw">0</div><div class="stat-lbl">การบ้านวันนี้</div></div>
+      </div>
+      <div class="list-card">
+        <div class="list-card-title">รออนุมัติ <span id="pending-count" style="font-size:12px;font-weight:400;color:#E24B4A"></span></div>
+        <div id="pending-list"><div style="text-align:center;color:#999;font-size:13px;padding:10px">ไม่มีรอการอนุมัติ</div></div>
+      </div>
     </div>
-    <div class="list-card">
-      <div class="list-card-title">รออนุมัติ <span id="pending-count" style="font-size:12px;font-weight:400;color:#E24B4A"></span></div>
-      <div id="pending-list"><div style="text-align:center;color:#999;font-size:13px;padding:10px">ไม่มีรอการอนุมัติ</div></div>
-    </div>
-    <div class="list-card">
-      <div class="list-card-title">ผู้ใช้ทั้งหมด</div>
+
+    <!-- USER MANAGEMENT -->
+    <div class="app-screen" id="ad-users">
+      <div style="padding:4px 0 12px;font-size:16px;font-weight:600">จัดการผู้ใช้</div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+        <button class="act-btn on" id="uf-all"     onclick="filterUsers('all')">ทั้งหมด</button>
+        <button class="act-btn"    id="uf-pending" onclick="filterUsers('pending')">รออนุมัติ</button>
+        <button class="act-btn"    id="uf-active"  onclick="filterUsers('active')">active</button>
+        <button class="act-btn"    id="uf-suspend" onclick="filterUsers('suspended')">ระงับ</button>
+      </div>
       <div id="all-users-list"><div style="text-align:center;color:#999;font-size:13px;padding:10px">กำลังโหลด...</div></div>
     </div>
+
+    <!-- GROUPS -->
+    <div class="app-screen" id="ad-groups-screen">
+      <div style="padding:4px 0 12px;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:16px;font-weight:600">กลุ่มทั้งหมด</div>
+        <button class="btn btn-sm" onclick="showCreateGroup()">+ สร้างกลุ่ม</button>
+      </div>
+      <div id="admin-groups-list"><div style="text-align:center;color:#999;font-size:13px;padding:20px">กำลังโหลด...</div></div>
+    </div>
+
+    <!-- HOMEWORK -->
+    <div class="app-screen" id="ad-hw-screen">
+      <div style="padding:4px 0 12px;font-size:16px;font-weight:600">การบ้านทั้งหมด</div>
+      <div id="admin-hw-list"><div style="text-align:center;color:#999;font-size:13px;padding:20px">เลือกกลุ่มก่อนครับ</div></div>
+    </div>
+
+  </div>
+
+  <!-- Admin Bottom Nav -->
+  <div class="bnav">
+    <button class="bni on" id="abn-home"   onclick="adminScreen('home')"><span style="font-size:20px">&#x1F4CA;</span><span>Dashboard</span></button>
+    <button class="bni"    id="abn-users"  onclick="adminScreen('users')"><span style="font-size:20px">&#x1F465;</span><span>ผู้ใช้</span></button>
+    <button class="bni"    id="abn-groups" onclick="adminScreen('groups')"><span style="font-size:20px">&#x1F4CB;</span><span>กลุ่ม</span></button>
+    <button class="bni"    id="abn-hw"     onclick="adminScreen('hw')"><span style="font-size:20px">&#x1F4DD;</span><span>การบ้าน</span></button>
+    <button class="bni"    id="abn-logout" onclick="doLogout()"><span style="font-size:20px">&#x1F6AA;</span><span>ออก</span></button>
   </div>
 </div>
 
@@ -1018,23 +1058,149 @@ function loadAdminData() {
     });
 }
 
+// ============================================================
+//  ADMIN SCREENS
+// ============================================================
+var ADMIN_SCREENS = ['home','users','groups','hw'];
+var ALL_USERS_CACHE = [];
+var CURRENT_USER_FILTER = 'all';
+
+function adminScreen(name) {
+  ADMIN_SCREENS.forEach(function(s){
+    var el = document.getElementById('ad-' + (s==='groups'?'groups-screen':s==='hw'?'hw-screen':s));
+    if (el) el.className = 'app-screen' + (s===name?' on':'');
+  });
+  ADMIN_SCREENS.forEach(function(s){
+    var el = document.getElementById('abn-' + s);
+    if (el) el.className = 'bni' + (s===name?' on':'');
+  });
+  if (name==='home')   loadAdminData();
+  if (name==='users')  renderUsers(CURRENT_USER_FILTER);
+  if (name==='groups') loadAdminGroups();
+  if (name==='hw')     loadAdminHw();
+}
+
+function filterUsers(f) {
+  CURRENT_USER_FILTER = f;
+  ['all','pending','active','suspend'].forEach(function(x){
+    var el = document.getElementById('uf-'+x);
+    if(el) el.className = 'act-btn' + (x===f?' joined':'');
+  });
+  renderUsers(f);
+}
+
+function renderUsers(f) {
+  var users = ALL_USERS_CACHE;
+  if (f === 'pending')   users = users.filter(function(u){ return u.status==='pending'; });
+  if (f === 'active')    users = users.filter(function(u){ return u.status==='active'; });
+  if (f === 'suspended') users = users.filter(function(u){ return u.status==='suspended'; });
+  var el = document.getElementById('all-users-list');
+  if (!users.length) {
+    el.innerHTML = '<div style="text-align:center;color:#999;font-size:13px;padding:20px">ไม่มีผู้ใช้</div>';
+    return;
+  }
+  var roleColor = { child:'#EEEDFE', teacher:'#FAEEDA', moderator:'#E6F1FB', parent:'#F1EFE8', admin:'#FCEBEB' };
+  var statusBadge = { active:'<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:#EAF3DE;color:#27500A">active</span>', pending:'<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:#FEF3E2;color:#633806">รออนุมัติ</span>', suspended:'<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:#FCEBEB;color:#791F1F">ระงับ</span>' };
+  el.innerHTML = users.map(function(u){
+    var init = (u.fullname||'').charAt(0);
+    var isPending = u.status==='pending';
+    var isSuspended = u.status==='suspended';
+    return '<div style="background:#fff;border-radius:12px;border:0.5px solid #E0DED8;padding:12px;margin-bottom:8px">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
+      '<div class="user-av" style="background:'+(roleColor[u.role]||'#EEEDFE')+'">'+init+'</div>' +
+      '<div style="flex:1">' +
+      '<div style="font-size:13px;font-weight:600">'+u.fullname+'</div>' +
+      '<div style="font-size:11px;color:#999">'+u.username+' · '+u.role+'</div>' +
+      '<div style="font-size:10px;color:#ccc;font-family:monospace">'+u.unique_key+'</div>' +
+      '</div>' +
+      (statusBadge[u.status]||'') +
+      '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+      (isPending ? '<button class="btn-approve" onclick="approveUser(''+u.unique_key+'',''+u.role+'')">✓ อนุมัติ</button><button class="btn-reject" onclick="rejectUser(''+u.unique_key+'')">✗ ปฏิเสธ</button>' : '') +
+      (!isPending && !isSuspended && u.role!=='admin' ? '<button class="btn-reject" onclick="suspendUser(''+u.unique_key+'')">ระงับ</button>' : '') +
+      (isSuspended ? '<button class="btn-approve" onclick="unsuspendUser(''+u.unique_key+'')">คืนสิทธิ์</button>' : '') +
+      '<button style="font-size:12px;padding:5px 10px;border-radius:20px;background:#E6F1FB;color:#0C447C;border:none;cursor:pointer" onclick="resetPassword(''+u.unique_key+'')">รีเซตรหัส</button>' +
+      '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function loadAdminGroups() {
+  api('group/list', { session_token: APP.token })
+    .then(function(d){
+      var el = document.getElementById('admin-groups-list');
+      if (!d.ok || !d.data.length) {
+        el.innerHTML = '<div style="text-align:center;color:#999;font-size:13px;padding:20px">ยังไม่มีกลุ่ม</div>';
+        document.getElementById('ad-groups').textContent = 0;
+        return;
+      }
+      document.getElementById('ad-groups').textContent = d.data.length;
+      el.innerHTML = d.data.map(function(g){
+        return '<div style="background:#fff;border-radius:12px;border:0.5px solid #E0DED8;padding:12px;margin-bottom:8px">' +
+          '<div style="display:flex;align-items:center;gap:10px">' +
+          '<span style="font-size:24px">&#x1F4CB;</span>' +
+          '<div style="flex:1">' +
+          '<div style="font-size:14px;font-weight:600">'+g.name+'</div>' +
+          '<div style="font-size:12px;color:#999">'+g.member_count+' สมาชิก · invite: '+( g.invite_code||'-')+'</div>' +
+          '</div></div></div>';
+      }).join('');
+    });
+}
+
+function loadAdminHw() {
+  document.getElementById('admin-hw-list').innerHTML =
+    '<div style="text-align:center;color:#999;font-size:13px;padding:20px">ฟีเจอร์นี้กำลังพัฒนาครับ</div>';
+}
+
+function showCreateGroup() {
+  var name = prompt('ชื่อกลุ่ม:');
+  if (!name) return;
+  api('group/create', { session_token: APP.token, name: name, description: '' })
+    .then(function(d){
+      if (d.ok) { alert('สร้างกลุ่ม ' + name + ' เรียบร้อย
+Invite code: ' + d.data.invite_code); loadAdminGroups(); }
+      else alert(d.error);
+    });
+}
+
+function resetPassword(key) {
+  if (!confirm('รีเซตรหัสผ่าน user นี้?')) return;
+  api('admin/resetPassword', { session_token: APP.token, target_key: key })
+    .then(function(d){
+      if (d.ok) alert('รหัสผ่านใหม่: ' + d.data.new_password);
+      else alert(d.error);
+    });
+}
+
 function approveUser(key, role) {
   api('admin/approveUser', { session_token: APP.token, target_key: key, role: role })
-    .then(function(d){ if(d.ok) loadAdminData(); else alert(d.error); });
+    .then(function(d){
+      if(d.ok) { loadAdminData(); renderUsers(CURRENT_USER_FILTER); }
+      else alert(d.error);
+    });
 }
 function rejectUser(key) {
   if (!confirm('ปฏิเสธคำขอสมัครของ user นี้?')) return;
   api('admin/rejectUser', { session_token: APP.token, target_key: key })
-    .then(function(d){ if(d.ok) loadAdminData(); else alert(d.error); });
+    .then(function(d){
+      if(d.ok) { loadAdminData(); renderUsers(CURRENT_USER_FILTER); }
+      else alert(d.error);
+    });
 }
 function suspendUser(key) {
   if (!confirm('ระงับ user นี้?')) return;
   api('admin/suspendUser', { session_token: APP.token, target_key: key })
-    .then(function(d){ if(d.ok) loadAdminData(); else alert(d.error); });
+    .then(function(d){
+      if(d.ok) { loadAdminData(); renderUsers(CURRENT_USER_FILTER); }
+      else alert(d.error);
+    });
 }
 function unsuspendUser(key) {
   api('admin/unsuspendUser', { session_token: APP.token, target_key: key })
-    .then(function(d){ if(d.ok) loadAdminData(); else alert(d.error); });
+    .then(function(d){
+      if(d.ok) { loadAdminData(); renderUsers(CURRENT_USER_FILTER); }
+      else alert(d.error);
+    });
 }
 
 // ============================================================
